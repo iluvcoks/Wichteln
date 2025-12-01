@@ -18,6 +18,7 @@ const NAMES = [
   "Johann",
   "Lara",
   "Marvin",
+  "Ruben",
   "Paul"
 ];
 

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Online-Wichteln</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .app {
+      background: #ffffff;
+      max-width: 600px;
+      width: 100%;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    h1 { text-align: center; margin-top: 0; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+    select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font: inherit;
+      margin-bottom: 8px;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: none;
+      font: inherit;
+      cursor: pointer;
+      background: #6366f1;
+      color: #ffffff;
+      font-weight: 600;
+      margin-top: 8px;
+      margin-right: 8px;
+    }
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    button.small {
+      font-size: 0.8rem;
+      padding: 6px 10px;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 0.9rem;
+      color: #4b5563;
+    }
+    .status.error { color: #b91c1c; }
+    .result {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #ecfdf5;
+      color: #166534;
+      font-weight: 600;
+    }
+    .hidden { display: none; }
+    .hint {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+<main class="app">
+  <h1>Online-Wichteln 🎁</h1>
+
+  <section>
+    <p>
+      Wähle deinen eigenen Namen aus der Liste.<br>
+      Wenn du deinen Wichtel angezeigt bekommen hast, ist dein Name für alle anderen weg.
+    </p>
+
+    <label for="nameSelect">Dein Name:</label>
+    <select id="nameSelect">
+      <option value="">Lade Daten ...</option>
+    </select>
+
+    <div>
+      <button id="drawButton">Wichtel anzeigen</button>
+      <button id="resetButton" class="secondary small" title="Nur zum Testen!">Reset (Test)</button>
+    </div>
+
+    <p id="status" class="status"></p>
+    <p id="result" class="result hidden"></p>
+
+    <p class="hint">
+      Hinweis: Diese Seite nutzt einen gemeinsamen Speicher.<br>
+      Wenn jemand seinen Namen benutzt hat, verschwindet er für alle. Also bitte fair bleiben 😉
+    </p>
+  </section>
+</main>
+
+<script>
+  const nameSelect = document.getElementById("nameSelect");
+  const drawButton = document.getElementById("drawButton");
+  const resetButton = document.getElementById("resetButton");
+  const statusEl = document.getElementById("status");
+  const resultEl = document.getElementById("result");
+
+  // ------------------------------------------------------------
+  // FIX: loadState() löscht NICHT mehr die resultEl-Anzeige!
+  // ------------------------------------------------------------
+  async function loadState() {
+    statusEl.textContent = "Lade aktuellen Wichtel-Status ...";
+    statusEl.classList.remove("error");
+    // NICHT resultEl leeren/verstecken – sonst verschwindet dein gezogener Name!
+
+    try {
+      const res = await fetch("/api/state");
+      if (!res.ok) throw new Error("Fehler beim Laden des Zustands");
+      const data = await res.json();
+
+      nameSelect.innerHTML = "";
+
+      if (!data.availableNames || data.availableNames.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Alle Namen sind schon verwendet. 🍪";
+        nameSelect.appendChild(opt);
+
+        nameSelect.disabled = true;
+        drawButton.disabled = true;
+
+        statusEl.textContent = "Die Wichtelrunde scheint abgeschlossen zu sein.";
+        return;
+      }
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "-- Bitte deinen Namen wählen --";
+      nameSelect.appendChild(placeholder);
+
+      data.availableNames.forEach(name => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        nameSelect.appendChild(opt);
+      });
+
+      nameSelect.disabled = false;
+      drawButton.disabled = false;
+      statusEl.textContent = "Du kannst jetzt deinen Namen wählen.";
+    } catch (e) {
+      statusEl.textContent = "Fehler beim Laden. Versuche die Seite neu zu laden.";
+      statusEl.classList.add("error");
+    }
+  }
+
+
+  // ------------------------------------------------------------
+  // Ziehen – zeigt Ergebnis & speichert es im Backend
+  // ------------------------------------------------------------
+  async function drawWichtel() {
+    const name = nameSelect.value;
+    if (!name) {
+      statusEl.textContent = "Bitte zuerst deinen Namen wählen.";
+      statusEl.classList.add("error");
+      return;
+    }
+
+    statusEl.textContent = "";
+    statusEl.classList.remove("error");
+
+    try {
+      const res = await fetch("/api/draw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Fehler beim Ziehen.");
+      }
+
+      const data = await res.json();
+
+      // Ergebnis anzeigen
+      resultEl.textContent = "Du beschenkst: " + data.giftee;
+      resultEl.classList.remove("hidden");
+
+      if (data.alreadyRevealed) {
+        statusEl.textContent = "Hinweis: Für diesen Namen wurde bereits gezogen.";
+      } else {
+        statusEl.textContent = "Wichtel gespeichert! Seite danach ruhig schließen 😏";
+      }
+
+      // Update: nur Dropdown aktualisieren – Ergebnis bleibt stehen
+      await loadState();
+
+    } catch (e) {
+      statusEl.textContent = e.message || "Unbekannter Fehler beim Ziehen.";
+      statusEl.classList.add("error");
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Reset (zum Testen)
+  // ------------------------------------------------------------
+  async function resetAll() {
+    if (!confirm("Komplette Wichtelrunde wirklich zurücksetzen?")) return;
+
+    statusEl.textContent = "Setze zurück ...";
+
+    try {
+      const res = await fetch("/api/reset", { method: "POST" });
+      if (!res.ok) throw new Error("Fehler beim Reset");
+
+      resultEl.textContent = "";
+      resultEl.classList.add("hidden");
+
+      statusEl.textContent = "Reset erfolgreich.";
+      await loadState();
+    } catch (e) {
+      statusEl.textContent = e.message;
+      statusEl.classList.add("error");
+    }
+  }
+
+  drawButton.addEventListener("click", drawWichtel);
+  resetButton.addEventListener("click", resetAll);
+
+  // Beim Laden sofort Zustand holen
+  loadState();
+</script>
+</body>
+</html>

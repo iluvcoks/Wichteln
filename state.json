@@ -1,0 +1,29 @@
+{
+  "names": [
+    "Anni",
+    "Ben",
+    "Beni",
+    "Daniel",
+    "Elisa",
+    "Till",
+    "Dustin",
+    "Johann",
+    "Lara",
+    "Marvin",
+    "Paul"
+  ],
+  "assignments": {
+    "Anni": "Lara",
+    "Ben": "Daniel",
+    "Beni": "Marvin",
+    "Daniel": "Elisa",
+    "Elisa": "Johann",
+    "Till": "Dustin",
+    "Dustin": "Beni",
+    "Johann": "Anni",
+    "Lara": "Ben",
+    "Marvin": "Paul",
+    "Paul": "Till"
+  },
+  "revealed": []
+}

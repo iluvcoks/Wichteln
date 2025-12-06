@@ -19,8 +19,7 @@ const NAMES = [
   "Lara",
   "Marvin",
   "Ruben",
-  "Lilly",
-  "Paul"
+  "Lilly"
 ];
 
 // Datei für den gespeicherten Zustand (quasi "Datenbank")
